@@ -1,0 +1,43 @@
+name: Deploy GMS Firebase Rules and Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'database.rules.json'
+      - 'firebase.json'
+      - 'functions/**'
+      - '.github/workflows/firebase-rules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Write temporary Firebase service account
+        shell: bash
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy Realtime Database rules and Functions
+        run: firebase deploy --project cshs-gmsm --only database,functions --non-interactive

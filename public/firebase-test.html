@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GMS Firebase Connection Test</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:40px}
+.card{max-width:780px;margin:auto;background:#111827;border:1px solid #334155;border-radius:20px;padding:28px}
+h1{margin-top:0}.status{padding:16px;border-radius:14px;background:#1e293b;margin:12px 0;white-space:pre-wrap}
+.ok{border:1px solid #22c55e}.bad{border:1px solid #ef4444}.muted{color:#94a3b8}
+button{padding:12px 18px;border-radius:10px;border:0;cursor:pointer}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<div class="card">
+<h1>GMS Firebase Connection Test</h1>
+<div id="status" class="status">Testing connection…</div>
+<p class="muted">This page verifies Firebase configuration, Anonymous Authentication, and Realtime Database access.</p>
+<button onclick="location.reload()">Test Again</button>
+</div>
+<script>
+(async()=>{
+ const el=document.getElementById('status');
+ try{
+   const app=firebase.initializeApp(window.GMS_FIREBASE_CONFIG);
+   const auth=firebase.auth();
+   await auth.signInAnonymously();
+   const db=firebase.database();
+   const ref=db.ref('gms_state/v1');
+   const snap=await ref.once('value');
+   el.className='status ok';
+   el.textContent=[
+     '✓ Firebase app initialized',
+     '✓ Anonymous Authentication works',
+     '✓ Realtime Database is reachable',
+     'Database URL: '+window.GMS_FIREBASE_CONFIG.databaseURL,
+     'State exists: '+snap.exists()
+   ].join('\n');
+ }catch(err){
+   console.error(err);
+   el.className='status bad';
+   el.textContent='✗ Firebase connection failed\n\n'+(err?.message||String(err))+
+     '\n\nMake sure Anonymous sign-in is enabled and database.rules.json has been deployed.';
+ }
+})();
+</script>
+</body>
+</html>
