@@ -1,54 +1,106 @@
-# Guidance Management System — Firebase Connected Build
+# Guidance Management System — Firebase Realtime Database + Hosting
 
-This package keeps the existing GMS interface and connects it to Firebase Realtime Database with realtime listeners, offline local fallback, queued writes, connection-state monitoring, Firebase Hosting, and GitHub Actions deployment.
+This package keeps the existing GMS design and connects its application state to **Firebase Realtime Database** with realtime listeners, offline local cache, queued writes, connection monitoring, and Firebase Hosting.
 
 ## Firebase project
 
 - Project ID: `cshs-gmsm`
-- Realtime Database URL: `https://cshs-gmsm-default-rtdb.firebaseio.com`
-- Database state path: `gms_state/v1`
-- Hosting web root: `public/`
+- Realtime Database: `https://cshs-gmsm-default-rtdb.firebaseio.com`
+- App state path: `gms_state/v1`
+- Hosting public folder: `public/`
+- Expected Hosting URL: `https://cshs-gmsm.web.app`
 
-## Important fixes in this build
+## What was fixed
 
-- `index.html` now explicitly loads `firebase-config.js`. The previous package contained the correct config file but did not load it into the page before initialization.
-- Realtime Database connection state is monitored through Firebase's `.info/connected` path.
-- A failed realtime listener is properly detached and recreated during automatic reconnects.
-- Writes are serialized and protected from a listener echo replacing unsaved local changes while a write is in progress.
-- Hosting serves only the `public/` web files instead of exposing the entire project root.
-- Cloud Functions are now declared in `firebase.json`, so `firebase deploy --only functions` has a valid target.
-- The account-edit typo `passwordHashHash` is fixed.
-- GitHub Actions workflows are included for Hosting, Realtime Database rules, and Functions.
-- A Firebase connection test page is included as `public/firebase-test.html`.
+- The Firebase web configuration is loaded before GMS initialization.
+- The app uses the real Realtime Database URL for `cshs-gmsm`.
+- Firebase Anonymous Authentication is used by the current compatibility layer so Realtime Database rules can require an authenticated Firebase session.
+- Realtime connection state is monitored through `.info/connected`.
+- Realtime listeners are detached and rebuilt after connection errors.
+- Writes are serialized and merged against the latest remote state to reduce accidental overwrites when more than one browser is active.
+- LocalStorage remains a cache/offline fallback; Firebase is the cloud source when connected.
+- Firebase Hosting serves only the `public/` directory and does not expose project source files.
+- Cache headers prevent stale `index.html` from hiding a newly deployed version.
+- The normal deployment target is deliberately limited to **Database rules + Hosting**, so the project does not depend on Cloud Functions just to publish the website.
+- `firebase-test.html` is included for a live Firebase connectivity check.
 
-## Local Firebase CLI deployment
+## Important Firebase Console setup
 
-From the project root:
+Before the first production test, open Firebase Console for project `cshs-gmsm` and make sure:
 
-```bash
+1. **Build → Authentication → Sign-in method → Anonymous** is enabled.
+2. **Build → Realtime Database** exists and is in the expected database.
+3. Deploy `database.rules.json` from this package.
+
+The browser Firebase configuration in `firebase-config.js` is safe to ship with a web application. Do not place service-account private keys in this folder or in `public/`.
+
+## Publish from Windows
+
+### Option A — Command Prompt
+
+Double-click:
+
+```text
+DEPLOY_GMS.cmd
+```
+
+Or run:
+
+```bat
 firebase login
 firebase use cshs-gmsm
-firebase deploy --only database,hosting,functions
+firebase deploy --only database,hosting --project cshs-gmsm
 ```
 
-For Hosting only:
+### Option B — PowerShell
 
-```bash
-firebase deploy --only hosting
+Run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\DEPLOY_GMS.ps1
 ```
 
-## GitHub automatic deployment
+## Verify the live database
 
-The GitHub workflow expects an Actions secret named `FIREBASE_SERVICE_ACCOUNT`. Firebase's official GitHub integration can create the service account, store its key as an encrypted repository secret, and generate the workflow using `firebase init hosting:github`.
+Read the root state with:
 
-Push to the `main` branch after the secret is configured. GitHub Actions will deploy the GMS Hosting site automatically.
+```bat
+firebase database:get /gms_state/v1 --project cshs-gmsm
+```
 
-## Firebase Console setup
+An empty installation may return `null` until the GMS web app initializes for the first time. After the web app connects, the GMS state is stored under `gms_state/v1`.
 
-Enable **Authentication → Anonymous** for the current compatibility architecture, then verify that Realtime Database exists and deploy `database.rules.json`.
+You can also open the live connection test:
 
-## Security note
+```text
+https://cshs-gmsm.web.app/firebase-test.html
+```
 
-The current application still has an application-level username/password screen whose account records live in the synchronized GMS state. Anonymous Firebase Authentication therefore authenticates the browser transport but does not make the GMS role itself a trusted Firebase identity. Realtime Database rules cannot safely enforce admin/counselor/teacher/principal/student permissions from those client-controlled records.
+The test checks Firebase initialization, Anonymous Authentication, and Realtime Database access.
 
-For a true production school system, migrate the login to Firebase Authentication (email/password and/or Google Sign-In), store the authenticated UID with each managed account, issue role custom claims from Cloud Functions, and make Realtime Database rules authorize operations from those claims. Firebase recommends Authentication plus Security Rules for this kind of authorization model.
+## Project structure
+
+```text
+gms_final_project/
+├─ public/
+│  ├─ index.html
+│  ├─ firebase-config.js
+│  ├─ firebase-test.html
+│  ├─ patch.js
+│  └─ assets/
+│     ├─ deped_seal.png
+│     └─ certificate_footer.png
+├─ database.rules.json
+├─ firebase.json
+├─ .firebaserc
+├─ DEPLOY_GMS.cmd
+├─ DEPLOY_GMS.ps1
+└─ README.md
+```
+
+## Security architecture note
+
+The current GMS interface has its own application-level account screen. Firebase Anonymous Authentication is only the transport/authentication layer used by this compatibility build. It is **not** equivalent to secure role-based Firebase Authentication.
+
+For a fully production-grade authorization model, the application should eventually move its login to Firebase Authentication with email/password or Google Sign-In and use Firebase custom claims plus rules for trusted `admin`, `counselor`, `principal`, `teacher`, and `student` permissions. That is a separate migration from the Hosting/Realtime Database publishing setup delivered here.

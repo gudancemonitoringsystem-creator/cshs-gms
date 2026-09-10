@@ -1,0 +1,8 @@
+{
+  "projectId": "cshs-gmsm",
+  "hostingPublic": "public",
+  "realtimeDatabaseUrl": "https://cshs-gmsm-default-rtdb.firebaseio.com",
+  "realtimeDatabasePath": "gms_state/v1",
+  "deployTargets": ["database", "hosting"],
+  "hostingUrl": "https://cshs-gmsm.web.app"
+}

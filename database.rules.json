@@ -9,16 +9,6 @@
         ".validate": "newData.exists() && newData.hasChildren(['users','students','incidentReports','goodMoralRequests','archives','notifications','auditLogs','settings'])",
         ".indexOn": ["updatedAt"]
       }
-    },
-    "managedAccounts": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true || auth.token.role === 'counselor' || auth.token.role === 'principal' || auth.token.role === 'teacher')",
-        ".write": "auth != null && auth.token.admin === true"
-      }
-    },
-    "auditLogs": {
-      ".read": "auth != null && auth.token.admin === true",
-      ".write": "auth != null && auth.token.admin === true"
     }
   }
 }
